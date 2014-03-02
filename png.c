@@ -54,11 +54,12 @@ int analyze_png(FILE *f) {
     	//====================
 		length = malloc(4);
 		fread(length, 1, 4, f);
+		int len = cAtoI(length);
     	//====================
     	// Parse the type and data
     	//====================
-    	typeData = malloc(4 + cAtoI(length));
-		fread(typeData, 1, 4 + cAtoI(length), f);
+    	typeData = malloc(4 + len);
+		fread(typeData, 1, 4 + len, f);
 		//====================
     	// Parse the checksum
     	//====================
@@ -74,7 +75,6 @@ int analyze_png(FILE *f) {
 		   	//====================
 			// Compare the checksum	
 	    	//====================
-	    	int len = cAtoI(length);
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
@@ -107,7 +107,6 @@ int analyze_png(FILE *f) {
 		   	//====================
 			// Compare the checksum	
 	    	//====================
-	    	int len = cAtoI(length);
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
@@ -130,7 +129,6 @@ int analyze_png(FILE *f) {
 				printf(": ");
 				index+=2;
 				uLongf size = len+4;
-		
 				unsigned char *value = malloc(size);
 				while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
 					free(value);
@@ -151,7 +149,6 @@ int analyze_png(FILE *f) {
 		   	//====================
 			// Compare the checksum	
 	    	//====================
-	    	int len = cAtoI(length);
 	    	if (len != 7) {
 	    		return -1;
 	    	}
