@@ -120,7 +120,7 @@ int analyze_png(FILE *f) {
 					return -1;
 				}
 				else{
-					getData = (int)length;
+					getData = len;
 				}
 
 				//====================
@@ -165,7 +165,7 @@ int analyze_png(FILE *f) {
 				return -1;
 			}
 			else{
-    			getData = (int)length;
+    			getData = len;
 	    	}
 	    		    	
 	    	//====================
