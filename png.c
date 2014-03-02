@@ -10,11 +10,11 @@
  * If it isn't a PNG file, return -1 and print nothing.
  */
  
+// converts length-4 unsigned char array to an unsigned int 
 unsigned int cAtoI(unsigned char* a) {
 	return 65536*a[0] + 4096*a[1] + 256*a[2] + a[3];
 }
-
- 
+// reverses a length-4 unsigned char array
 void cAreverse(unsigned char* a) {
 	unsigned char temp = a[0];
 	a[0] = a[3];
@@ -23,7 +23,7 @@ void cAreverse(unsigned char* a) {
 	a[1] = a[2];
 	a[2] = temp;
 }
- 
+// prints an unsigned char array in hex 
 void printHex(unsigned char* a, size_t len) {
 	int i = 0;
 	for (i = 0; i < len; i++) {
@@ -46,7 +46,7 @@ int analyze_png(FILE *f) {
     unsigned char* length;
     unsigned char* typeData;
     unsigned char* checksum;
-    
+    char tIME = 0;
     
     while(!feof(f)){
     	//====================
@@ -65,18 +65,16 @@ int analyze_png(FILE *f) {
 		checksum = malloc(4);
 		fread(checksum, 1, 4, f);
 		cAreverse(checksum);
-
 		//====================
-    	// Parse the checksum if the type is recognized
+    	// If the type is recognized
     	//====================
     	//type tExt
 		if (typeData[0] == 0x74 && typeData[1] == 0x45 && 
 			typeData[2] == 0x58 && typeData[3] == 0x74) {
-
-			int len = cAtoI(length);
 		   	//====================
 			// Compare the checksum	
 	    	//====================
+	    	int len = cAtoI(length);
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
@@ -87,7 +85,6 @@ int analyze_png(FILE *f) {
 			else{
     			getData = len;
 	    	}
-	    	
 	    	//====================
 	    	// Loop over data and output
     		//====================
@@ -107,26 +104,24 @@ int analyze_png(FILE *f) {
 		//type zTXt
 		else if (typeData[0] == 0x7a && typeData[1] == 0x54 && 
 				typeData[2] == 0x58 && typeData[3] == 0x74) {
-
-			int len = cAtoI(length);
 		   	//====================
 			// Compare the checksum	
 	    	//====================
+	    	int len = cAtoI(length);
     		int getData = 0;
-				uLong crc = crc32(0L, Z_NULL, 0);
-				crc = crc32(crc, typeData, 4 + len);
-				if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
-					printf("CHECKSUM mismatch\n");
-					return -1;
-				}
-				else{
-					getData = len;
-				}
-
-				//====================
-				// Loop over data and output
-				//====================
-				if (getData){
+    		uLong crc = crc32(0L, Z_NULL, 0);
+    		crc = crc32(crc, typeData, 4 + len);	
+			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
+				printf("CHECKSUM mismatch\n");
+				return -1;
+			}
+			else{
+    			getData = len;
+	    	}
+			//====================
+			// Loop over data and output
+			//====================
+			if (getData){
 				int index = 4;
 				while(typeData[index] != 0x00) {
 					printf("%c", typeData[index]);
@@ -135,7 +130,7 @@ int analyze_png(FILE *f) {
 				printf(": ");
 				index+=2;
 				uLongf size = len+4;
-			
+		
 				unsigned char *value = malloc(size);
 				while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
 					free(value);
@@ -151,23 +146,25 @@ int analyze_png(FILE *f) {
 		}
 		// type tIME
 		else if (typeData[0] == 0x74 && typeData[1] == 0x49 && 
-			typeData[2] == 0x4d && typeData[3] == 0x45) {
-
-			int len = cAtoI(length);
+			typeData[2] == 0x4d && typeData[3] == 0x45 && !tIME){
+			tIME = 1;
 		   	//====================
 			// Compare the checksum	
 	    	//====================
+	    	int len = cAtoI(length);
+	    	if (len != 7) {
+	    		return -1;
+	    	}
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
-    		crc = crc32(crc, typeData, 4 + len);
+    		crc = crc32(crc, typeData, 4 + len);	
 			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
 			}
 			else{
     			getData = len;
-	    	}
-	    		    	
+	    	}	
 	    	//====================
 	    	// Loop over data and output
     		//====================
