@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <zlib.h>
 #include "png.h"
 
@@ -48,47 +47,29 @@ int analyze_png(FILE *f) {
     	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
     	return -1;
     }
-    else{
-    	printf("Valid PNG\n");
-    }
     unsigned char* length;
     unsigned char* typeData;
     unsigned char* checksum;
-    int cleanExit = 0;
     
     
     while(!feof(f)){
     	//====================
     	// Parse the length
     	//====================
-    	//printf("Parsing Length\n");
 		length = malloc(4);
 		fread(length, 1, 4, f);
     	//====================
     	// Parse the type and data
     	//====================
-    	//printf("Parsing typeData\n");
     	typeData = malloc(4 + cAtoI(length, 4));
 		fread(typeData, 1, 4 + cAtoI(length, 4), f);
 		//====================
     	// Parse the checksum
     	//====================
-		//printf("Parsing Checksum\n");
 		checksum = malloc(4);
 		fread(checksum, 1, 4, f);
 		cAreverse(checksum);
-			
-		/*	
-		//prints calls
-		printf("\nLength: ");
-		printHex(length, 4);
-		printf("Type: ");
-		printHex(typeData, 4);
-		printf("Data: ");
-		printHex(typeData+4, cAtoI(length, 4));
-		printf("Checksum: ");
-		printHex(checksum, 4);
-		*/
+
 		//====================
     	// Parse the checksum if the type is recognized
     	//====================
@@ -102,18 +83,7 @@ int analyze_png(FILE *f) {
 	    	//====================
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
-    		crc = crc32(crc, typeData, 4 + len);
-    	
-    		printf("\nLength %u\n", len);
-	    	printf("Type ");
-	    	printHex(typeData, 4);
-	    	printf("Data ");
-	    	printHex(typeData+4, len);
-    		printf("Checksum: ");
-    		printHex(checksum, 4);
-    		printf("CRC: ");
-    		printHex((unsigned char *) &crc, 4);
-    	
+    		crc = crc32(crc, typeData, 4 + len);	
 			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
@@ -127,7 +97,6 @@ int analyze_png(FILE *f) {
     		//====================
     		int index = 4;
 	    	while((getData) && index < 4 + len){
-    			//printf("Second loop\n");
     			if (typeData[index] == 0x00) {
 	    			printf(": ");
 	    		}
@@ -150,17 +119,6 @@ int analyze_png(FILE *f) {
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);
-    	
-    		printf("\nLength %u\n", len);
-	    	printf("Type ");
-	    	printHex(typeData, 4);
-	    	printf("Data ");
-	    	printHex(typeData+4, len);
-    		printf("Checksum: ");
-    		printHex(checksum, 4);
-    		printf("CRC: ");
-    		printHex((unsigned char *) &crc, 4);
-    	
 			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
@@ -168,23 +126,28 @@ int analyze_png(FILE *f) {
 			else{
     			getData = (int)length;
 	    	}
-	    	
-	    	
-	    	
+
 	    	//====================
 	    	// Loop over data and output
     		//====================
     		int index = 4;
-	    	while((getData) && index < len+4){
-    			//printf("Second loop\n");
-    			if (typeData[index] == 0x00) {
-    				printf(": ");
-    			}
-    			else{
-   					printf("%c", typeData[index]);
-				}
-    			getData--;
-	    		index++;
+    		while(typeData[index] != 0x00) {
+    			printf("%c", typeData[index]);
+    			index++;
+    		}
+    		printf(": ");
+    		index+=2;
+    		uLongf size = len+4;
+    		
+    		unsigned char *value = malloc(size);
+    		
+    		while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
+				free(value);
+				value = malloc(size*2);
+				size *= 2;
+    		}
+    		for (int i = 0; i < size; i++) {
+    			printf("%c", value[i]);
     		}
     		printf("\n");		
 		}
@@ -199,17 +162,6 @@ int analyze_png(FILE *f) {
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);
-    	
-    		printf("\nLength %u\n", len);
-	    	printf("Type ");
-	    	printHex(typeData, 4);
-	    	printf("Data ");
-	    	printHex(typeData+4, len);
-    		printf("Checksum: ");
-    		printHex(checksum, 4);
-    		printf("CRC: ");
-    		printHex((unsigned char *) &crc, 4);
-    	
 			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
@@ -224,8 +176,8 @@ int analyze_png(FILE *f) {
 			int index = 4;
     		printf("Timestamp: ");
     		if (getData) {
-    			printf("%u %u\n", typeData[index], typeData[index+1]);
-    			uint16_t year = (uint16_t)(typeData+index);
+    			//printf("%u %u\n", typeData[index], typeData[index+1]);
+    			unsigned int year = 256*typeData[index]+typeData[index+1];
     			unsigned int month = (unsigned int)typeData[index+2];
     			unsigned int day = (unsigned int)typeData[index+3];
     			unsigned int hour = (unsigned int)typeData[index+4];
@@ -235,13 +187,6 @@ int analyze_png(FILE *f) {
 			}
     		printf("\n");		
 		}
-		else{
-			;
-		}
-	
-    	if (cleanExit) {
-    		return 0;
-    	}
     }
-    return -1;
+    return 0;
 }

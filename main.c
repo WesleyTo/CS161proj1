@@ -9,7 +9,6 @@
 #include "jpg.h"
 
 int try_analyze_png_file(char *filename) {
-	printf("Trying PNG\n");
     FILE *f = fopen(filename, "r");
     if (f == NULL)
         return -1;
@@ -28,7 +27,6 @@ int try_analyze_jpg_file(char *filename) {
 }
 
 int analyze(char *filename) {
-	printf("Analyzing\n");
     int rv;
     printf("File: %s\n", filename);
     rv = try_analyze_png_file(filename);
