@@ -10,13 +10,8 @@
  * If it isn't a PNG file, return -1 and print nothing.
  */
  
-unsigned int cAtoI(unsigned char* a, size_t len) {
-	unsigned int rv = 0x00000000;
-	for (int i = 0; i < len; i++) {
-		rv = rv<<2;
-		rv |= a[i];
-	}
-	return rv;
+unsigned int cAtoI(unsigned char* a) {
+	return 65536*a[0] + 4096*a[1] + 256*a[2] + a[3];
 }
 
  
@@ -30,7 +25,8 @@ void cAreverse(unsigned char* a) {
 }
  
 void printHex(unsigned char* a, size_t len) {
-	for (int i = 0; i < len; i++) {
+	int i = 0;
+	for (i = 0; i < len; i++) {
 		printf("%02x", a[i]);
 	}
 	printf("\n");
@@ -61,8 +57,8 @@ int analyze_png(FILE *f) {
     	//====================
     	// Parse the type and data
     	//====================
-    	typeData = malloc(4 + cAtoI(length, 4));
-		fread(typeData, 1, 4 + cAtoI(length, 4), f);
+    	typeData = malloc(4 + cAtoI(length));
+		fread(typeData, 1, 4 + cAtoI(length), f);
 		//====================
     	// Parse the checksum
     	//====================
@@ -77,19 +73,19 @@ int analyze_png(FILE *f) {
 		if (typeData[0] == 0x74 && typeData[1] == 0x45 && 
 			typeData[2] == 0x58 && typeData[3] == 0x74) {
 
-			int len = cAtoI(length, 4);
+			int len = cAtoI(length);
 		   	//====================
 			// Compare the checksum	
 	    	//====================
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
-			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
+			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
 			}
 			else{
-    			getData = (int)length;
+    			getData = len;
 	    	}
 	    	
 	    	//====================
@@ -112,57 +108,59 @@ int analyze_png(FILE *f) {
 		else if (typeData[0] == 0x7a && typeData[1] == 0x54 && 
 				typeData[2] == 0x58 && typeData[3] == 0x74) {
 
-			int len = cAtoI(length, 4);
+			int len = cAtoI(length);
 		   	//====================
 			// Compare the checksum	
 	    	//====================
     		int getData = 0;
-    		uLong crc = crc32(0L, Z_NULL, 0);
-    		crc = crc32(crc, typeData, 4 + len);
-			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
-				printf("CHECKSUM mismatch\n");
-				return -1;
-			}
-			else{
-    			getData = (int)length;
-	    	}
+				uLong crc = crc32(0L, Z_NULL, 0);
+				crc = crc32(crc, typeData, 4 + len);
+				if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
+					printf("CHECKSUM mismatch\n");
+					return -1;
+				}
+				else{
+					getData = (int)length;
+				}
 
-	    	//====================
-	    	// Loop over data and output
-    		//====================
-    		int index = 4;
-    		while(typeData[index] != 0x00) {
-    			printf("%c", typeData[index]);
-    			index++;
+				//====================
+				// Loop over data and output
+				//====================
+				if (getData){
+				int index = 4;
+				while(typeData[index] != 0x00) {
+					printf("%c", typeData[index]);
+					index++;
+				}
+				printf(": ");
+				index+=2;
+				uLongf size = len+4;
+			
+				unsigned char *value = malloc(size);
+				while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
+					free(value);
+					value = malloc(size*2);
+					size *= 2;
+				}
+				int i = 0;
+				for (i = 0; i < size; i++) {
+					printf("%c", value[i]);
+				}
+				printf("\n");
     		}
-    		printf(": ");
-    		index+=2;
-    		uLongf size = len+4;
-    		
-    		unsigned char *value = malloc(size);
-    		
-    		while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
-				free(value);
-				value = malloc(size*2);
-				size *= 2;
-    		}
-    		for (int i = 0; i < size; i++) {
-    			printf("%c", value[i]);
-    		}
-    		printf("\n");		
 		}
 		// type tIME
 		else if (typeData[0] == 0x74 && typeData[1] == 0x49 && 
 			typeData[2] == 0x4d && typeData[3] == 0x45) {
 
-			int len = cAtoI(length, 4);
+			int len = cAtoI(length);
 		   	//====================
 			// Compare the checksum	
 	    	//====================
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);
-			if (cAtoI(checksum, 4) != cAtoI((unsigned char *)&crc, 4)) {
+			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
 				printf("CHECKSUM mismatch\n");
 				return -1;
 			}
