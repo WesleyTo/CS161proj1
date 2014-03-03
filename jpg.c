@@ -92,6 +92,25 @@ int validTagId(unsigned char* a) {
 	}
 	return rv;
 }
+
+unsigned int getDataSize(int n) {
+	unsigned int rv = 0;
+	switch(n){
+		case 1: rv = 1; break;
+		case 2: rv = 1; break;
+		case 3: rv = 2; break;
+		case 4: rv = 4; break;
+		case 5: rv = 2*sizeof(unsigned long); break;
+		case 7: rv = 1; break;
+		case 8: rv = 2; break;
+		case 9: rv = 4; break;
+		case 10: rv = 2*sizeof(long); break;
+		case 11: rv = 4; break;
+		case 12: rv = 8; break;
+		default: rv = 0; break;
+	}
+	return rv;
+}
  
  
 int analyze_jpg(FILE *f) {
@@ -186,7 +205,7 @@ int analyze_jpg(FILE *f) {
 				while(i<numTags) {
 					unsigned char* tagid = &data[currPos];
 					currPos+=2;
-					//unsigned char* datatype = &data[currPos];
+					unsigned char* datatype = &data[currPos];
 					currPos+=2;
 					unsigned char* count = &data[currPos];
 					currPos+=4;
@@ -208,15 +227,23 @@ int analyze_jpg(FILE *f) {
 						*/
 						cAreverse(count);
 						cAreverse(offsetOrValue);
+						unsigned int dataSize = getDataSize(256*datatype[1] + datatype[0]);
 						unsigned int offsetInt = cAtoI(offsetOrValue);
+						cAreverse(offsetOrValue);
 						unsigned int countInt = cAtoI(count);
 						//printf("%u\n", offsetInt);
-						unsigned dataIndex = tiffIndex + offsetInt;
-						for (int k = 0; k < countInt; k++) {
-							printf("%c", data[dataIndex+k]);
+						if (dataSize*countInt < 4) {
+							for (int k = 0; k < countInt; k++) {
+								printf("%c", offsetOrValue[k]);
+							}
+						}
+						else{
+							unsigned dataIndex = tiffIndex + offsetInt;
+							for (int k = 0; k < countInt; k++) {
+								printf("%c", data[dataIndex+k]);
+							}
 						}
 						printf("\n");
-						
 					}
 					i++;
 				}
