@@ -1,6 +1,7 @@
 /*
  * I assert the work on this project was all my own.
- * <put your name here>
+ * Wesley To cs161-fg
+ * Scott Bertucci cs161-az
  */
 
 #include <stdio.h>
