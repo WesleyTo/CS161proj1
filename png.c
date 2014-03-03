@@ -33,16 +33,17 @@ void printHex(unsigned char* a, size_t len) {
 }
  
 int analyze_png(FILE *f) {
+
+	//====================
+	// Get the file size
+	//====================
 	long size;
-    fseek (f, 0, SEEK_END);   // non-portable
+    fseek (f, 0, SEEK_END);
     size=ftell (f);
 	int currSize = 0;
     rewind(f);
-    printf ("Size of myfile.txt: %ld bytes.\n",size);
-
-
 	//====================
-	// Check if it's a PNG file
+	// Check if PNG is valid (PNG and IEND present)
 	//====================
     unsigned char* chars = malloc(8);
     unsigned char* IEND = malloc(12);
@@ -67,6 +68,8 @@ int analyze_png(FILE *f) {
     	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
     	return -1;
     }
+    free(chars);
+    free(IEND);
     unsigned char* length;
     unsigned char* typeData;
     unsigned char* checksum;
@@ -83,7 +86,6 @@ int analyze_png(FILE *f) {
 			exit(1);
 		}
 		if (fread(length, 1, 4, f) != 4) {
-		
 			printf("Fread error, CURRSIZE: %u SIZE: %ld\n", currSize, size);
 			return -1;
 		}
@@ -147,7 +149,8 @@ int analyze_png(FILE *f) {
     		// assert that the data contains a 0x00 nul char
 	    	//====================
     		char nulFound = 0;
-    		for (int i = 4; i < len; i++) {
+    		int i = 0;
+    		for (i = 4; i < len; i++) {
     			if (typeData[i] == 0x00) {
     				nulFound = 1;
     			}
@@ -191,7 +194,8 @@ int analyze_png(FILE *f) {
     		// assert that the data contains two sequential 0x00 nul chars
 	    	//====================
     		char nulFound = 0;
-    		for (int i = 4; i < len-1; i++) {
+    		int i = 0;
+    		for (i = 4; i < len-1; i++) {
     			if (typeData[i] == 0x00 && typeData[i+1] == 0x00) {
     				nulFound++;
     			}
@@ -230,6 +234,7 @@ int analyze_png(FILE *f) {
 					printf("%c", value[i]);
 				}
 				printf("\n");
+				free(value);
     		}
 		}
 		// type tIME
@@ -270,6 +275,9 @@ int analyze_png(FILE *f) {
 			}
     		printf("\n");		
 		}
+	free(length);
+	free(typeData);
+	free(checksum);
     }
     return 0;
 }
