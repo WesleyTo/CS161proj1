@@ -11,7 +11,7 @@
  */
  
 // converts length-4 unsigned char array to an unsigned int 
-unsigned int cAtoI(unsigned char* a) {
+unsigned int cAtoI(unsigned char* a){
 	return 65536*a[0] + 4096*a[1] + 256*a[2] + a[3];
 }
 // reverses a length-4 unsigned char array
@@ -33,12 +33,36 @@ void printHex(unsigned char* a, size_t len) {
 }
  
 int analyze_png(FILE *f) {
-    
-    //====================
-    // Check if it's a PNG file
-    //====================
-    unsigned char chars[8];
-    fread(chars, 1, 8, f);
+	long size;
+    fseek (f, 0, SEEK_END);   // non-portable
+    size=ftell (f);
+	int currSize = 0;
+    rewind(f);
+    printf ("Size of myfile.txt: %ld bytes.\n",size);
+
+
+	//====================
+	// Check if it's a PNG file
+	//====================
+    unsigned char* chars = malloc(8);
+    unsigned char* IEND = malloc(12);
+    fseek(f, -12, SEEK_END);
+    if(fread(IEND, 1, 12, f) != 12) {
+    	return -1;
+    }
+    if (IEND[0] != 0x00 || IEND[1] != 0x00 || IEND[2] != 0x00 || IEND[3] != 0x00 || 
+    	IEND[4] != 0x49 || IEND[5] != 0x45 || IEND[6] != 0x4e || IEND[7] != 0x44 || 
+    	IEND[8] != 0xae || IEND[9] != 0x42 || IEND[10] != 0x60 || IEND[11] != 0x82) {
+    	printf("No IEND chunk\n");
+    	return -1;
+    }
+    rewind(f);
+    if(fread(chars, 1, 8, f) != 8) {
+    	return -1;
+    }
+    else{
+    	currSize += 8;
+    }
     if (chars[0] != 0x89 || chars[1] != 0x50 ||	chars[2] != 0x4e || chars[3] != 0x47 ||
     	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
     	return -1;
@@ -46,25 +70,59 @@ int analyze_png(FILE *f) {
     unsigned char* length;
     unsigned char* typeData;
     unsigned char* checksum;
-    char tIME = 0;
+    char tIME = 0; // tIME counter => if > 1, invalid PNG 
     
-    while(!feof(f)){
+    while(!feof(f) && currSize < size-12){
+
     	//====================
     	// Parse the length
     	//====================
 		length = malloc(4);
-		fread(length, 1, 4, f);
+		if (length == NULL) {
+			printf("Malloc error\n");
+			exit(1);
+		}
+		if (fread(length, 1, 4, f) != 4) {
+		
+			printf("Fread error, CURRSIZE: %u SIZE: %ld\n", currSize, size);
+			return -1;
+		}
+		else{
+			currSize += 4;
+		}
 		int len = cAtoI(length);
+		if (len + currSize > size) {
+			printf("Invalid size\n");
+			return -1;
+		}
     	//====================
     	// Parse the type and data
     	//====================
     	typeData = malloc(4 + len);
-		fread(typeData, 1, 4 + len, f);
+    	if (typeData == NULL) {
+    		printf("Malloc error\n");
+			exit(1);
+		}
+		if (fread(typeData, 1, 4 + len, f) != len+4) {
+			return -1;
+		}
+		else{
+			currSize += len+4;
+		}
 		//====================
     	// Parse the checksum
     	//====================
 		checksum = malloc(4);
-		fread(checksum, 1, 4, f);
+		if (checksum == NULL) {
+			printf("Malloc error\n");
+			exit(1);
+		}
+		if (fread(checksum, 1, 4, f) != 4) {
+			return -1;
+		}	
+		else{
+			currSize += 4;
+		}
 		cAreverse(checksum);
 		//====================
     	// If the type is recognized
@@ -85,6 +143,18 @@ int analyze_png(FILE *f) {
 			else{
     			getData = len;
 	    	}
+    		//====================
+    		// assert that the data contains a 0x00 nul char
+	    	//====================
+    		char nulFound = 0;
+    		for (int i = 4; i < len; i++) {
+    			if (typeData[i] == 0x00) {
+    				nulFound = 1;
+    			}
+    		}
+    		if (!nulFound) {
+    			return -1;
+    		}
 	    	//====================
 	    	// Loop over data and output
     		//====================
@@ -117,6 +187,18 @@ int analyze_png(FILE *f) {
 			else{
     			getData = len;
 	    	}
+	    	//====================
+    		// assert that the data contains two sequential 0x00 nul chars
+	    	//====================
+    		char nulFound = 0;
+    		for (int i = 4; i < len-1; i++) {
+    			if (typeData[i] == 0x00 && typeData[i+1] == 0x00) {
+    				nulFound++;
+    			}
+    		}
+    		if (!nulFound) {
+    			return -1;
+    		}
 			//====================
 			// Loop over data and output
 			//====================
@@ -130,9 +212,17 @@ int analyze_png(FILE *f) {
 				index+=2;
 				uLongf size = len+4;
 				unsigned char *value = malloc(size);
+				if (value == NULL) {
+					printf("Malloc error\n");
+					exit(1);
+				}
 				while(uncompress(value, &size, typeData+index, len+4-index) != Z_OK) {
 					free(value);
 					value = malloc(size*2);
+					if (value == NULL) {
+						printf("Malloc error\n");
+						exit(1);
+					}
 					size *= 2;
 				}
 				int i = 0;
@@ -144,14 +234,15 @@ int analyze_png(FILE *f) {
 		}
 		// type tIME
 		else if (typeData[0] == 0x74 && typeData[1] == 0x49 && 
-			typeData[2] == 0x4d && typeData[3] == 0x45 && !tIME){
-			tIME = 1;
+			typeData[2] == 0x4d && typeData[3] == 0x45){
+			// checks for invalidity
+			if (tIME > 1 || len != 7) {
+				return -1;
+			}
+			tIME++;
 		   	//====================
 			// Compare the checksum	
 	    	//====================
-	    	if (len != 7) {
-	    		return -1;
-	    	}
     		int getData = 0;
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
