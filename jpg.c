@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "jpg.h"
-#include "utility.h"
 
 /*
  * Analyze a JPG file that contains Exif data.
@@ -10,109 +9,133 @@
  * If it isn't a JPG file, return -1 and print nothing.
  */
  
- 
-int validTagId(unsigned char* a) {
-	int rv = 0;
-	unsigned char least = a[0];
-	unsigned char most = a[1];
-	//documentName
-	if (most == 0x01 && least == 0x0d) {
+void getValue(unsigned int index, unsigned int tagID, unsigned int dataType, unsigned int size, unsigned int count, unsigned char *data) {
+	//printf("in getValue\n");
+	//printf("%x\n", tagID);
+	unsigned int undefined = 3;
+	if (tagID == 0x010d) {
 		printf("DocumentName: ");
-		rv = 1;
-	}
-	//ImageDescription
-	else if (most == 0x01 && least == 0x0e) {
+		undefined = 0;
+	} else if (tagID == 0x010e) {
 		printf("ImageDescription: ");
-		rv = 2;
-	}
-	//Make
-	else if (most == 0x01 && least == 0x0f) {
+		undefined = 0;
+	} else if (tagID == 0x010f) {
 		printf("Make: ");
-		rv = 3;
-	}
-	//Model
-	else if (most == 0x01 && least == 0x10) {
+		undefined = 0;
+	} else if (tagID == 0x0110) {
 		printf("Model: ");
-		rv = 4;
-	}
-	//Software
-	else if (most == 0x01 && least == 0x31) {
+		undefined = 0;
+	} else if (tagID == 0x0131) {
 		printf("Software: ");
-		rv = 5;
-	}
-	//DateTime
-	else if (most == 0x01 && least == 0x32) {
+		undefined = 0;
+	} else if (tagID == 0x0132) {
 		printf("DateTime: ");
-		rv = 6;
-	}
-	//Artist
-	else if (most == 0x01 && least == 0x3b) {
+		undefined = 0;
+	} else if (tagID == 0x013b) {
 		printf("Artist: ");
-		rv = 7;
-	}
-	//HostComputer
-	else if (most == 0x01 && least == 0x3c) {
+		undefined = 0;
+	} else if (tagID == 0x013c) {
 		printf("HostComputer: ");
-		rv = 7;
-	}
-	//Copyright
-	else if (most == 0x82 && least == 0x98) {
+		undefined = 0;
+	} else if (tagID == 0x8298) {
 		printf("Copyright: ");
-		rv = 8;
-	}
-	//RelatedSoundFile
-	else if (most == 0xa0 && least == 0x04) {
+		undefined = 0;
+	} else if (tagID == 0xa004) {
 		printf("RelatedSoundFile: ");
-		rv = 9;
-	}
-	//DateTimeOriginal
-	else if (most == 0x90 && least == 0x03) {
+		undefined = 0;
+	} else if (tagID == 0x9003) {
 		printf("DateTimeOriginal: ");
-		rv = 10;
-	}
-	//DateTimeDigitized
-	else if (most == 0x90 && least == 0x04) {
+		undefined = 0;
+	} else if (tagID == 0x9004) {
 		printf("DateTimeDigitized: ");
-		rv = 11;
-	}
-	//MakerNote
-	else if (most == 0x92 && least == 0x7c) {
+		undefined = 0;
+	} else if (tagID == 0x927c) {
 		printf("MakerNote: ");
-		rv = 12;
-	}
-	//UserComment
-	else if (most == 0x92 && least == 0x86) {
+		undefined = 1;
+	} else if (tagID == 0x9286) {
 		printf("UserComment: ");
-		rv = 13;
-	}
-	//ImageUniqueID
-	else if (most == 0xa4 && least == 0x20) {
+		if (data[index] != 0x41 || data[index + 1] != 0x53 || data[index + 2] != 0x43 || data[index + 3] != 0x49 || data[index + 4] != 0x49 || data[index + 5] != 0x00 || data[index + 6] != 0x00 || data[index + 7] != 0x00) {
+			undefined = 3;
+		} else {
+			index = index + 8;
+			undefined = 2;
+		}
+	} else if (tagID == 0xa420) {
 		printf("ImageUniqueID: ");
-		rv = 14;
+		undefined = 0;
 	}
-	return rv;
+	if (undefined == 0) {
+		unsigned int temp = 0;
+		while (temp < count-1) {
+			printf("%c", data[index + temp]);
+			temp += 1;
+		}
+		printf("\n");
+	} else if (undefined == 1) {
+		unsigned int temp = 0;
+		while (temp < count) {
+			if (data[index + temp] == 0x00) {
+				temp = count;
+			} else {
+				printf("%c", data[index + temp]);
+				temp += 1;
+			}
+		}
+		printf("\n");
+	} else if (undefined == 2) {
+		unsigned int temp = 0;
+		while (temp < count - 8) {
+			if (data[index + temp] == 0x00) {
+				temp = count;
+			} else {
+				printf("%c", data[index + temp]);
+				temp += 1;
+			}
+		}
+		printf("\n");
+	}
 }
 
-unsigned int getDataSize(int n) {
-	unsigned int rv = 0;
-	switch(n){
-		case 1: rv = 1; break;
-		case 2: rv = 1; break;
-		case 3: rv = 2; break;
-		case 4: rv = 4; break;
-		case 5: rv = 2*sizeof(unsigned long); break;
-		case 7: rv = 1; break;
-		case 8: rv = 2; break;
-		case 9: rv = 4; break;
-		case 10: rv = 2*sizeof(long); break;
-		case 11: rv = 4; break;
-		case 12: rv = 8; break;
-		default: rv = 0; break;
+void parseIFD(unsigned int index, unsigned char *data) {
+	unsigned int numTags = 256*data[index + 1] + data[index];
+	index = index + 2;
+	unsigned int counter = 0;
+	unsigned int sizeDict[15] = {0,1,1,2,4,8,0,1,2,4,8,4,8};
+	//printf("in parse\n");
+	while (counter < numTags) {
+		//printf("looping\n");
+		unsigned int tagID = 256*data[index+1] + data[index];
+		index = index + 2;
+		//printf("tagID: %x\n", tagID);
+		unsigned int dataType = 256*data[index+1] + data[index];
+		index = index + 2;
+		//printf("dataType: %x\n", dataType);
+		unsigned int count = 65536*data[index+3] + 4096*data[index+2] + 256*data[index+1] + data[index];
+		index = index + 4;
+		//printf("count: %d\n", count);
+		unsigned int dataSize = count * sizeDict[dataType];
+		//printf("dataSize: %d\n", dataSize);
+		if (tagID == 0x8769) { //is Exif IFD
+			//printf("in tagID\n");
+			unsigned int offset = 65536*data[index+3] + 4096*data[index+2] + 256*data[index+1] + data[index];
+			offset = offset + 6;
+			parseIFD(offset, data);
+			index = index + 4;
+		} else if (dataSize <= 4) {
+			//printf("in dataSize\n");
+			getValue(index, tagID, dataType, sizeDict[dataType], count, data);
+			index = index + 4;
+		} else {
+			//printf("in normal\n");
+			unsigned int offset = 65536*data[index+3] + 4096*data[index+2] + 256*data[index+1] + data[index];
+			offset = offset + 6;
+			getValue(offset, tagID, dataType, sizeDict[dataType], count, data);
+			index = index + 4;
+		}
+		counter += 1;
 	}
-	return rv;
 }
- 
- 
+
 int analyze_jpg(FILE *f) {
     /* YOU WRITE THIS PART */
 	unsigned int superLowBound = 0xffd0;
@@ -123,9 +146,10 @@ int analyze_jpg(FILE *f) {
 	unsigned char *marker;
 	marker = malloc(2);
 	fread(marker, 1, 2, f);
+	unsigned int markerCheck;
 	while(!feof(f)){
 		//check if chunk super or standard
-		unsigned int markerCheck = 256*marker[0] + marker[1];
+		markerCheck = 256*marker[0] + marker[1];
 		//printf("markerCheck: %x\n", markerCheck);
 		if (markerCheck >= superLowBound && markerCheck <= superHighBound) {
 			//printf("in super chunk\n");
@@ -148,8 +172,7 @@ int analyze_jpg(FILE *f) {
 					}
 				}
 			}
-		} 
-		else {
+		} else {
 			//printf("in standard chunk\n");
 			//printf("markerCheck: %x\n", markerCheck);
 			//marker is standard
@@ -158,94 +181,30 @@ int analyze_jpg(FILE *f) {
 			fread(length, 1, 2, f);
 			unsigned int len = 256*length[0] + length[1];
 			len = len - 2; //length of data
-			//printf("len: %u\n", len);
+			//printf("len: %x\n", len);
 			unsigned char *data;
 			data = malloc(len);
 			fread(data, 1, len, f);
 			if (markerCheck == APP1) {
 				//is Tiff file
-				printf("APP1 found\n");
-				printf("HEX DUMP of Data\n");
-				printHex(data, len);
-				/*
-				printf("PRINT AS CHAR\n\n");
-				for (int i = 0; i < len; i++) {
-					printf("%c", data[i]);
-				}
-				*/
-				int tiffIndex = 0;
-				for (int i = 0; i < len-6; i++) {
-					if (data[i] == 0x45 && data[i+1] == 0x78 && 
-						data[i+2] == 0x69 && data[i+3] == 0x66 && 
-						data[i+4] == 0x00 && data[i+5] == 0x00) {
-						tiffIndex = i+6;
+				//printf("%x\n", data[0]);
+				//printf("found APP1\n");
+				if (data[0] != 0x45 || data[1] != 0x78 || data[2] != 0x69 || data[3] != 0x66 || data[4] != 0x00 || data[5] != 0x00) {
+					//printf("in if\n");
+					return -1;
+				} else {
+					//printf("in else\n");
+					int index = 6;
+					if (data[6] != 0x49 || data[7] != 0x49 || data[8] != 0x2a || data[9] != 0x00) { //not proper tiff
+						//printf("not tiff\n");
+						return -1;
+					} else { //is proper tiff
+						//printf("tiff\n");
+						index = 65536*data[13] + 4096*data[12] + 256*data[11] + data[10];
+						index = index + 6;
+						//printf("index: %d\n", index);
+						parseIFD(index, data);						
 					}
-				
-				}
-
-				printf("\n\nTIFF Index: %d\n", tiffIndex);
-				unsigned char* endianness = &data[tiffIndex];
-				unsigned char* magicString = &data[tiffIndex+2];
-				unsigned char* offset = &data[tiffIndex+4];
-				cAreverse(offset);
-				unsigned int IFDpos = tiffIndex + cAtoI(offset);
-				unsigned int currPos = IFDpos;
-				unsigned int numTags = 256*data[IFDpos+1] + data[IFDpos];
-				currPos+=2;
-				printf("\n\nEndianness: ");
-				printHex(endianness, 2);
-				printf("Magic String: ");
-				printHex(magicString, 2);
-				printf("Offset: ");
-				printHex(offset, 4);
-				printf("IFD start: %u\n", IFDpos);
-				printf("# of Tags: %u\n\n", numTags);
-								
-				unsigned int i = 0;
-				while(i<numTags) {
-					unsigned char* tagid = &data[currPos];
-					currPos+=2;
-					unsigned char* datatype = &data[currPos];
-					currPos+=2;
-					unsigned char* count = &data[currPos];
-					currPos+=4;
-					unsigned char* offsetOrValue = &data[currPos];
-					currPos+=4;
-
-					if(validTagId(tagid)) {
-						/*
-						printf("Tag #%u\n", i);
-						printf("Tagid: ");
-						printHex(tagid, 2);
-						printf("DatTy: ");
-						printHex(datatype, 2);
-						printf("Count: ");
-						printHex(count, 4);
-						printf("OfVal: ");
-						printHex(offsetOrValue, 4);
-						printf("\n");
-						*/
-						cAreverse(count);
-						cAreverse(offsetOrValue);
-						unsigned int dataSize = getDataSize(256*datatype[1] + datatype[0]);
-						unsigned int offsetInt = cAtoI(offsetOrValue);
-						cAreverse(offsetOrValue);
-						unsigned int countInt = cAtoI(count);
-						//printf("%u\n", offsetInt);
-						if (dataSize*countInt < 4) {
-							for (int k = 0; k < countInt; k++) {
-								printf("%c", offsetOrValue[k]);
-							}
-						}
-						else{
-							unsigned dataIndex = tiffIndex + offsetInt;
-							for (int k = 0; k < countInt; k++) {
-								printf("%c", data[dataIndex+k]);
-							}
-						}
-						printf("\n");
-					}
-					i++;
 				}
 				return 0;
 			} else {
