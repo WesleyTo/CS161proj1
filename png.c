@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <zlib.h>
 #include "png.h"
+#include "utility.h"
 
 /*
  * Analyze a PNG file.
@@ -10,30 +11,7 @@
  * If it isn't a PNG file, return -1 and print nothing.
  */
  
-// converts length-4 unsigned char array to an unsigned int 
-unsigned int cAtoI(unsigned char* a){
-	return 65536*a[0] + 4096*a[1] + 256*a[2] + a[3];
-}
-// reverses a length-4 unsigned char array
-void cAreverse(unsigned char* a) {
-	unsigned char temp = a[0];
-	a[0] = a[3];
-	a[3] = temp;
-	temp = a[1];
-	a[1] = a[2];
-	a[2] = temp;
-}
-// prints an unsigned char array in hex 
-void printHex(unsigned char* a, size_t len) {
-	int i = 0;
-	for (i = 0; i < len; i++) {
-		printf("%02x", a[i]);
-	}
-	printf("\n");
-}
- 
 int analyze_png(FILE *f) {
-
 	//====================
 	// Get the file size
 	//====================
@@ -64,7 +42,6 @@ int analyze_png(FILE *f) {
     if (IEND[0] != 0x00 || IEND[1] != 0x00 || IEND[2] != 0x00 || IEND[3] != 0x00 || 
     	IEND[4] != 0x49 || IEND[5] != 0x45 || IEND[6] != 0x4e || IEND[7] != 0x44 || 
     	IEND[8] != 0xae || IEND[9] != 0x42 || IEND[10] != 0x60 || IEND[11] != 0x82) {
-    	printf("No IEND chunk\n");
     	return -1;
     }
     fseek(f, 8, 0);
@@ -74,9 +51,7 @@ int analyze_png(FILE *f) {
     unsigned char* typeData;
     unsigned char* checksum;
     char tIME = 0; // tIME counter => if > 1, invalid PNG 
-    
     while(!feof(f) && currSize < size-12){
-
     	//====================
     	// Parse the length
     	//====================
