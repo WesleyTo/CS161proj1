@@ -47,6 +47,16 @@ int analyze_png(FILE *f) {
 	//====================
     unsigned char* chars = malloc(8);
     unsigned char* IEND = malloc(12);
+    if(fread(chars, 1, 8, f) != 8) {
+    	return -1;
+    }
+    else{
+    	currSize += 8;
+    }
+    if (chars[0] != 0x89 || chars[1] != 0x50 ||	chars[2] != 0x4e || chars[3] != 0x47 ||
+    	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
+    	return -1;
+    }    
     fseek(f, -12, SEEK_END);
     if(fread(IEND, 1, 12, f) != 12) {
     	return -1;
@@ -57,17 +67,7 @@ int analyze_png(FILE *f) {
     	printf("No IEND chunk\n");
     	return -1;
     }
-    rewind(f);
-    if(fread(chars, 1, 8, f) != 8) {
-    	return -1;
-    }
-    else{
-    	currSize += 8;
-    }
-    if (chars[0] != 0x89 || chars[1] != 0x50 ||	chars[2] != 0x4e || chars[3] != 0x47 ||
-    	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
-    	return -1;
-    }
+    fseek(f, 8, 0);
     free(chars);
     free(IEND);
     unsigned char* length;
