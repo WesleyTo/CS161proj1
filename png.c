@@ -26,22 +26,30 @@ int analyze_png(FILE *f) {
     unsigned char* chars = malloc(8);
     unsigned char* IEND = malloc(12);
     if(fread(chars, 1, 8, f) != 8) {
+	free(chars);
+	free(IEND);
     	return -1;
     }
     else{
     	currSize += 8;
     }
     if (chars[0] != 0x89 || chars[1] != 0x50 ||	chars[2] != 0x4e || chars[3] != 0x47 ||
-    	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {	
+    	chars[4] != 0x0d ||	chars[5] != 0x0a ||	chars[6] != 0x1a ||	chars[7] != 0x0a) {
+	free(chars);
+	free(IEND);
     	return -1;
     }    
     fseek(f, -12, SEEK_END);
     if(fread(IEND, 1, 12, f) != 12) {
+	free(chars);
+	free(IEND);
     	return -1;
     }
     if (IEND[0] != 0x00 || IEND[1] != 0x00 || IEND[2] != 0x00 || IEND[3] != 0x00 || 
     	IEND[4] != 0x49 || IEND[5] != 0x45 || IEND[6] != 0x4e || IEND[7] != 0x44 || 
     	IEND[8] != 0xae || IEND[9] != 0x42 || IEND[10] != 0x60 || IEND[11] != 0x82) {
+	free(chars);
+	free(IEND);
     	return -1;
     }
     fseek(f, 8, 0);
@@ -62,6 +70,7 @@ int analyze_png(FILE *f) {
 		}
 		if (fread(length, 1, 4, f) != 4) {
 			printf("Fread error, CURRSIZE: %u SIZE: %ld\n", currSize, size);
+			free(length);
 			return -1;
 		}
 		else{
@@ -70,6 +79,7 @@ int analyze_png(FILE *f) {
 		int len = cAtoI(length);
 		if (len + currSize > size) {
 			printf("Invalid size\n");
+			free(length);
 			return -1;
 		}
     	//====================
@@ -78,9 +88,12 @@ int analyze_png(FILE *f) {
     	typeData = malloc(4 + len);
     	if (typeData == NULL) {
     		printf("Malloc error\n");
+    		free(length);
 			exit(1);
 		}
 		if (fread(typeData, 1, 4 + len, f) != len+4) {
+			free(typeData);
+			free(length);
 			return -1;
 		}
 		else{
@@ -92,9 +105,14 @@ int analyze_png(FILE *f) {
 		checksum = malloc(4);
 		if (checksum == NULL) {
 			printf("Malloc error\n");
+			free(length);
+			free(typeData);
 			exit(1);
 		}
 		if (fread(checksum, 1, 4, f) != 4) {
+			free(length);
+			free(typeData);
+			free(checksum);
 			return -1;
 		}	
 		else{
@@ -114,7 +132,13 @@ int analyze_png(FILE *f) {
     		uLong crc = crc32(0L, Z_NULL, 0);
     		crc = crc32(crc, typeData, 4 + len);	
 			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
+				//printf("checksum: %x\n", cAtoI(checksum));
+				printf("new checksum: %lu\n", crc);
+				printHex((unsigned char *)&crc,4);
 				printf("CHECKSUM mismatch\n");
+				free(length);
+				free(typeData);
+				free(checksum);
 				return -1;
 			}
 			else{
@@ -131,6 +155,9 @@ int analyze_png(FILE *f) {
     			}
     		}
     		if (!nulFound) {
+    			free(length);
+				free(typeData);
+				free(checksum);
     			return -1;
     		}
 	    	//====================
@@ -160,6 +187,9 @@ int analyze_png(FILE *f) {
     		crc = crc32(crc, typeData, 4 + len);	
 			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
 				printf("CHECKSUM mismatch\n");
+    			free(length);
+				free(typeData);
+				free(checksum);
 				return -1;
 			}
 			else{
@@ -176,6 +206,9 @@ int analyze_png(FILE *f) {
     			}
     		}
     		if (!nulFound) {
+    			free(length);
+				free(typeData);
+				free(checksum);
     			return -1;
     		}
 			//====================
@@ -200,6 +233,9 @@ int analyze_png(FILE *f) {
 					value = malloc(size*2);
 					if (value == NULL) {
 						printf("Malloc error\n");
+    					free(length);
+						free(typeData);
+						free(checksum);
 						exit(1);
 					}
 					size *= 2;
@@ -217,6 +253,9 @@ int analyze_png(FILE *f) {
 			typeData[2] == 0x4d && typeData[3] == 0x45){
 			// checks for invalidity
 			if (tIME > 1 || len != 7) {
+    			free(length);
+				free(typeData);
+				free(checksum);
 				return -1;
 			}
 			tIME++;
@@ -228,6 +267,9 @@ int analyze_png(FILE *f) {
     		crc = crc32(crc, typeData, 4 + len);	
 			if (cAtoI(checksum) != cAtoI((unsigned char *)&crc)) {
 				printf("CHECKSUM mismatch\n");
+	    		free(length);
+				free(typeData);
+				free(checksum);
 				return -1;
 			}
 			else{
